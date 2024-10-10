@@ -11,9 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Model;
 
-namespace OrderService
+namespace InventoryService
 {
     public class Startup
     {
@@ -30,8 +29,15 @@ namespace OrderService
             services.AddControllers();
 
             services.AddMassTransit(config => {
+
+                config.AddConsumer<OrderConsumer>();
+
                 config.UsingRabbitMq((ctx, cfg) => {
                     cfg.Host("amqp://guest:guest@localhost:5672");
+
+                    cfg.ReceiveEndpoint("order-queue", c => {
+                        c.ConfigureConsumer<OrderConsumer>(ctx);
+                    });
                 });
             });
 
@@ -56,23 +62,6 @@ namespace OrderService
             {
                 endpoints.MapControllers();
             });
-            var bus = Bus.Factory.CreateUsingRabbitMq(config => 
-            { config.Host("amqp://guest:guest@localhost:5672");
-                config.ReceiveEndpoint("Mia-coda", c =>
-                {
-                    c.Handler<Order>(ctx =>
-                {
-                    return Console.Out.WriteLineAsync(ctx.Message.Name);
-                });
-            
-                });
-
-            });
-
-            bus.Start();
-            bus.Publish(new Order { Name = "Piero test" });
-            bus.Stop();
         }
     }
 }
- 

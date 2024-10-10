@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using Ecomm.Models;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
-using Plain.RabbitMQ;
+using Model;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -13,22 +14,18 @@ namespace OrderService.Controllers
     [ApiController]
     public class OrderController : ControllerBase
     {
-        private readonly IOrderDetailsProvider orderDetailsProvider;
-        private readonly IPublisher publisher;
-        private readonly IOrderCreator orderCreator;
+        private readonly IPublishEndpoint publishEndpoint;
 
-        public OrderController(IOrderDetailsProvider orderDetailsProvider, IPublisher publisher, IOrderCreator orderCreator)
+        public OrderController(IPublishEndpoint publishEndpoint)
         {
-            this.orderDetailsProvider = orderDetailsProvider;
-            this.publisher = publisher;
-            this.orderCreator = orderCreator;
+            this.publishEndpoint = publishEndpoint;
         }
 
         // GET: api/<OrderController>
         [HttpGet]
-        public IEnumerable<OrderDetail> Get()
+        public IEnumerable<string> Get()
         {
-            return orderDetailsProvider.Get();
+            return new string[] { "value1", "value2" };
         }
 
         // GET api/<OrderController>/5
@@ -40,14 +37,11 @@ namespace OrderService.Controllers
 
         // POST api/<OrderController>
         [HttpPost]
-        public async Task Post([FromBody] OrderDetail orderDetail)
+        public async Task<IActionResult> Post([FromBody] Order order)
         {
-            var id = await orderCreator.Create(orderDetail);
-            publisher.Publish(JsonConvert.SerializeObject(new OrderRequest { 
-                OrderId = id,
-                ProductId = orderDetail.ProductId,
-                Quantity = orderDetail.Quantity
-            }), "order.created", null);
+            await publishEndpoint.Publish<Order>(order);
+
+            return Ok();
         }
 
         // PUT api/<OrderController>/5
